@@ -8,7 +8,8 @@ About, and the "Stay on frequency" signup. Built from the
 - Plain HTML / CSS / vanilla JS — no build step, no framework, no runtime dependencies
 - Self-hosted fonts (Anton, Oswald, Archivo — SIL OFL) — no third-party requests at all
 - Responsive AVIF / WebP / JPEG images generated from the brand originals
-- Strict security headers + CSP (`_headers`), cached assets, `robots.txt`, `sitemap.xml`, OG / Twitter cards, JSON-LD
+- Google Tag Manager (`GTM-NWVR6VDZ`) on every page, plus a `/privacy` policy page (GetTerms embed)
+- Security headers + CSP (`_headers`), cached assets, `robots.txt`, `sitemap.xml`, OG / Twitter cards, JSON-LD
 - Lighthouse 100 / 100 / 100 (Accessibility, Best Practices, SEO) on desktop and mobile
 - Motion: staggered hero reveal, EQ bars, tilted marquee ticker, scroll reveals, menu filter transitions,
   pulsing map pin, Carnival countdown sticker, rotating badge ring, poster lightbox — all respecting
@@ -17,7 +18,8 @@ About, and the "Stay on frequency" signup. Built from the
 ## Project layout
 
 ```
-index.html            the page
+index.html            the landing page
+privacy.html          privacy policy (GetTerms embed), served at /privacy
 styles.css            tokens (ported from the design system) + components + sections
 main.js               nav, scroll-spy, reveals, filters, lightbox, countdown, signup
 assets/               optimised images, favicons, OG image, grain tile
@@ -69,6 +71,37 @@ to a mailto link so nothing is lost silently:
    endpoint (Zapier / Make / Mailchimp / your CRM). The same JSON record is POSTed to it.
 
 Both can be enabled together. Redeploy (or retry the deployment) after adding bindings.
+
+## Analytics & privacy policy
+
+**Google Tag Manager** — container `GTM-NWVR6VDZ`. The `<head>` snippet sits as high as possible on
+both `index.html` and `privacy.html`, with the `<noscript>` iframe immediately after `<body>`.
+Add a page to the site → copy both snippets across, or GTM won't fire there.
+
+**Privacy policy** — `privacy.html` hosts the GetTerms embed (account `oK14B`, document `privacy`).
+The policy text is edited in the GetTerms dashboard, not in this repo; the page only supplies the
+brand shell and the styling for the injected markup (`.legal__body` in `styles.css`). The embed
+repeats the document title as an `<h1>`, which is hidden so the page keeps a single heading.
+Cloudflare Pages serves it at the clean URL **`/privacy`**, which is what the footer links to.
+
+### CSP note
+
+Adding GTM and GetTerms required loosening the Content-Security-Policy in `_headers`:
+
+- `script-src` now allows `'unsafe-inline'` plus `googletagmanager.com` and `gettermscdn.com`.
+  GTM needs `'unsafe-inline'` — its container injects inline scripts, and any Custom HTML tag you
+  add in the GTM UI would otherwise be silently blocked. This is the standard trade-off for
+  running GTM; the alternative (nonces) breaks as soon as someone adds a tag in the dashboard.
+- `frame-src` allows both hosts: the GTM `<noscript>` iframe, and GetTerms — which uses a hidden
+  iframe to fetch the document even in `mode="direct"`.
+- `img-src` / `connect-src` allow Google Analytics endpoints so GA4 tags fired through GTM work.
+
+If a tag ever fails to fire, check the browser console first — a CSP violation names the exact
+directive and host to add.
+
+**Cookie consent:** GTM/GA4 set analytics cookies. Under UK GDPR/PECR those need consent *before*
+they fire, so a consent banner (GTM's Consent Mode, or a CMP) is the missing piece before this
+counts as compliant — the privacy policy alone doesn't cover it.
 
 ## Editing content
 

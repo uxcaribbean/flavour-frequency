@@ -316,7 +316,47 @@ ul { margin: 0; padding: 0; list-style: none; }
 .footer__social span { color: var(--text-muted); margin-left: 4px; }
 .footer__social a:hover span { color: inherit; }
 .footer__legal { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 28px; padding-block: 18px; border-top: 1px solid rgba(242,227,198,.08); font-size: 12px; color: var(--text-muted); }
+.footer__links { display: flex; gap: 22px; flex-wrap: wrap; }
+.footer__links a { color: var(--text-muted); font-family: var(--font-condensed); letter-spacing: var(--track-caps); text-transform: uppercase; }
+.footer__links a:hover { color: var(--accent-hot); }
+.footer__links a[aria-current="page"] { color: var(--ff-cream); }
 .footer__top { color: var(--text-muted); font-family: var(--font-condensed); letter-spacing: var(--track-caps); text-transform: uppercase; }
+
+/* ==========================================================================
+   LEGAL PAGES (privacy policy — GetTerms embed)
+   ========================================================================== */
+.legal { padding-top: clamp(40px, 6vw, 72px); background: radial-gradient(60% 40% at 0% 0%, rgba(240,120,24,.10), transparent 70%); }
+.legal__container { max-width: 820px; }
+.legal__body { margin-top: 36px; padding: clamp(22px, 3.5vw, 40px); background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
+.legal__contact { margin-top: 28px; font-size: 14px; color: var(--text-muted); }
+
+/* The embed injects its own markup, so style generically inside the wrapper. */
+.legal__body { color: var(--text-body); font-size: 15.5px; line-height: 1.7; overflow-wrap: break-word; }
+.legal__body h1, .legal__body h2, .legal__body h3, .legal__body h4 { font-family: var(--font-condensed); font-weight: 700; letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text-accent); line-height: var(--leading-heading); }
+/* The embed repeats the document title as an <h1>; the page header already
+   carries it, so hide it to avoid a duplicate heading (and a second H1). */
+.legal__body h1 { display: none; }
+.legal__body h2 { font-size: 20px; margin: 34px 0 10px; padding-top: 20px; border-top: 1px solid var(--border-subtle); }
+.legal__body h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.legal__body h3 { font-size: 16px; color: var(--ff-cream); margin: 22px 0 8px; }
+.legal__body h4 { font-size: 14px; color: var(--text-muted); margin: 18px 0 6px; }
+.legal__body p { margin: 0 0 14px; }
+.legal__body a { color: var(--text-accent); text-decoration: underline; text-underline-offset: 2px; }
+.legal__body a:hover { color: var(--accent-hot); }
+.legal__body strong, .legal__body b { color: var(--ff-cream); font-weight: 700; }
+.legal__body ul, .legal__body ol { margin: 0 0 16px; padding-left: 22px; list-style: revert; }
+.legal__body li { margin-bottom: 8px; }
+.legal__body li::marker { color: var(--accent-primary); }
+.legal__body hr { height: 1px; border: 0; background: var(--border-subtle); margin: 26px 0; }
+.legal__body table { width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 14px; display: block; overflow-x: auto; }
+.legal__body th, .legal__body td { padding: 10px 12px; border: 1px solid var(--border-subtle); text-align: left; vertical-align: top; }
+.legal__body th { font-family: var(--font-condensed); font-weight: 600; font-size: 12px; letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--text-muted); background: rgba(242,227,198,.04); }
+.legal__body code, .legal__body pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--ff-ink); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+.legal__body code { padding: 1px 5px; }
+.legal__body pre { padding: 12px 14px; overflow-x: auto; }
+.legal__body blockquote { margin: 0 0 16px; padding-left: 16px; border-left: 3px solid var(--rule-hot); color: var(--text-muted); }
+.legal__body img { border-radius: var(--radius-sm); }
+.legal__body :last-child { margin-bottom: 0; }
 
 /* ==========================================================================
    LIGHTBOX
