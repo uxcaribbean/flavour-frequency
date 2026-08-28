@@ -198,9 +198,16 @@
       emailInput.setAttribute("aria-invalid", String(!valid));
       if (!valid) { setStatus("Drop in a real email and we'll keep you posted.", true); emailInput.focus(); return; }
 
+      var consent = $('input[name="updates"]', form);
+      if (!consent.checked) {
+        setStatus("Tick the box below so we know it's OK to email you.", true);
+        consent.focus();
+        return;
+      }
+
       var payload = {
         email: email,
-        updates: !!$('input[name="updates"]', form).checked,
+        updates: true,
         frequency_check: $('input[name="frequency_check"]', form).value, // honeypot — stays empty for humans
         source: "flavourfrequency.com"
       };

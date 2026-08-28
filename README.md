@@ -57,20 +57,70 @@ Every push to `main` deploys. `functions/` is picked up automatically as Pages F
 Custom domain: `flavourfrequency.com` is referenced in the canonical / OG / sitemap URLs — attach it
 under **Custom domains** in the Pages project (DNS already points at Cloudflare).
 
-### Wiring up the signup form
+### Wiring up the signup form (SureContact)
 
-`POST /api/subscribe` validates the email (plus a honeypot) and then stores/forwards it. It needs
-**one** of these configured in the Pages project, otherwise it returns `501` and the page falls back
-to a mailto link so nothing is lost silently:
+The mailing list lives in **SureContact**. The page keeps its own form and POSTs to
+`/api/subscribe` — a Pages Function, i.e. server-side. That matters: a static page has no server, so
+an API key in client-side JS would be readable by anyone. The credential never leaves the Function.
 
-1. **KV (simplest)** — Workers & Pages → KV → create a namespace (e.g. `flavour-frequency-subscribers`),
-   then Pages project → *Settings → Bindings → KV namespace* → variable name **`SUBSCRIBERS`**.
-   Signups are stored as `sub:<email>` → `{ email, updates, source, country, ts }`.
-   Export any time with `wrangler kv key list --namespace-id=<id>` or from the dashboard.
-2. **Webhook** — Pages project → *Settings → Variables* → **`SUBSCRIBE_WEBHOOK_URL`** = an `https://`
-   endpoint (Zapier / Make / Mailchimp / your CRM). The same JSON record is POSTed to it.
+> The SureContact-hosted form was considered and rejected: it is a page on `app.surecontact.com`, so
+> embedding means an **iframe**, and CSS cannot cross an iframe boundary — it could not be made to
+> match the site. The form API exposes no styling options either (`name`, `description`, `fields`,
+> `slug` only).
 
-Both can be enabled together. Redeploy (or retry the deployment) after adding bindings.
+Set **any** of these in the Pages project. With none set the endpoint returns `501` and the page
+falls back to a mailto link, so signups are never silently dropped:
+
+| Variable | Where | What it does |
+|---|---|---|
+| `SC_API_KEY` | *Settings → Variables* (encrypt it) | Upserts the contact and sets tag, list and consent timestamp. Richest option. |
+| `SC_WEBHOOK_URL` | *Settings → Variables* | An automation's Incoming Webhook URL. No key; starts the automation directly. |
+| `SUBSCRIBERS` | *Settings → Bindings → KV namespace* | Durable local copy, written first so a SureContact outage can't lose a signup. |
+| `SC_CONTACT_STATUS` | *Settings → Variables* (optional) | `active` (default) or `pending` to require double opt-in. |
+
+**KV + `SC_API_KEY` together is the recommended pair.** KV is written first as the durable record;
+SureContact is then best-effort, so if it is down the visitor still sees success and the signup can
+be replayed from KV rather than lost.
+
+Redeploy after adding variables — Pages only picks them up on a new deployment.
+
+#### Workspace UUIDs
+
+SureContact keys tags and custom fields by **UUID, not name**, so these are hard-coded in
+`functions/api/subscribe.js` (in the `SC` constant, with the human names in comments). They are
+specific to this workspace:
+
+| Thing | Name | UUID |
+|---|---|---|
+| Tag | `newsletter-subscribed` | `8495b510-be54-4df0-92b0-17cb732c03a2` |
+| List | `Newsletter` | `ec4e7e9f-5749-44fa-8c07-661bb8aa59ac` |
+| Custom field | `consent_timestamp` ("Consent given at") | `e91857ed-3894-4fd1-908d-2e0dcc13b3fb` |
+
+If you rebuild the workspace, update that constant or contacts will be created untagged.
+
+#### Consent
+
+The "Send me event drops & menus" box is unticked by default (a pre-ticked box is not consent under
+UK GDPR, and is a banned practice under the DMCC Act). It is **required** — submitting without it
+returns a clear message rather than storing an address there is no permission to email. The moment
+of consent is recorded on the contact as `consent_timestamp`.
+
+Emails, sequences and templates all live in SureContact — the site only submits the contact. If a
+welcome email doesn't arrive, the answer is in the automation config, not in this repo.
+
+**Erasure:** a "delete everything about me" request has to reach SureContact too, not just KV.
+There is no public endpoint for this by design; delete the contact from the SureContact dashboard
+(or via its MCP connector) and remove the matching `sub:<email>` key from KV.
+
+#### Tests
+
+`test/subscribe.test.mjs` covers the Function against a mocked SureContact and KV — the honeypot,
+validation, the consent gate, the request shape (route, `X-API-Key` not `Bearer`, UUIDs), and the
+failure modes. No network and no key needed:
+
+```bash
+node test/subscribe.test.mjs
+```
 
 ## Analytics & privacy policy
 
