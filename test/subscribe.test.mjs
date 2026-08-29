@@ -44,7 +44,7 @@ await check("GET → 405", (await onRequestGet()).status, 405);
   await check("webhook received normalised email", calls[0]?.body.email, "ravi@example.com");
 }
 
-// --- API path sends the right shape
+// --- API path sends the right shape (per https://api.surecontact.com/docs)
 {
   const calls = [];
   globalThis.fetch = async (url, init) => { calls.push({ url, headers: init.headers, body: JSON.parse(init.body) }); return new Response("{\"uuid\":\"u1\"}", { status: 200 }); };
@@ -52,9 +52,13 @@ await check("GET → 405", (await onRequestGet()).status, 405);
   const c = calls[0];
   await check("API: correct route", c.url, "https://api.surecontact.com/api/v1/public/contacts/upsert");
   await check("API: X-API-Key header (not Bearer)", { key: c.headers["X-API-Key"], auth: c.headers.Authorization }, { key: "k_test", auth: undefined });
-  await check("API: tag + list + consent field by UUID",
-    { tags: c.body.tag_uuids, lists: c.body.list_uuids, fieldKeys: Object.keys(c.body.custom_fields), status: c.body.status },
-    { tags: ["8495b510-be54-4df0-92b0-17cb732c03a2"], lists: ["ec4e7e9f-5749-44fa-8c07-661bb8aa59ac"], fieldKeys: ["e91857ed-3894-4fd1-908d-2e0dcc13b3fb"], status: "active" });
+  await check("API: email + source nested under primary_fields",
+    { email: c.body.primary_fields.email, source: c.body.primary_fields.source, topLevelEmail: c.body.email },
+    { email: "ravi@example.com", source: "form", topLevelEmail: undefined });
+  await check("API: no status sent unless configured", c.body.primary_fields.status, undefined);
+  await check("API: tags/lists by UUID, consent field by NAME",
+    { tags: c.body.tag_uuids, lists: c.body.list_uuids, consentIsIso: /^\d{4}-\d{2}-\d{2}T.*Z$/.test(c.body.custom_fields.consent_timestamp) },
+    { tags: ["8495b510-be54-4df0-92b0-17cb732c03a2"], lists: ["ec4e7e9f-5749-44fa-8c07-661bb8aa59ac"], consentIsIso: true });
 }
 
 // --- resilience: KV succeeded, CRM down → visitor still sees success
@@ -77,7 +81,7 @@ await check("GET → 405", (await onRequestGet()).status, 405);
   const calls = [];
   globalThis.fetch = async (u, i) => { calls.push(JSON.parse(i.body)); return new Response("{}", { status: 200 }); };
   await run(VALID, { SC_API_KEY: "k", SC_CONTACT_STATUS: "pending" });
-  await check("SC_CONTACT_STATUS=pending honoured", calls[0].status, "pending");
+  await check("SC_CONTACT_STATUS=pending honoured (in primary_fields)", calls[0].primary_fields.status, "pending");
 }
 
 // --- worker routing (worker.js is the Workers-with-assets entry point)

@@ -30,9 +30,10 @@ const SC = {
   lists: {
     newsletter: "ec4e7e9f-5749-44fa-8c07-661bb8aa59ac", // "Newsletter"
   },
-  fields: {
-    consentTimestamp: "e91857ed-3894-4fd1-908d-2e0dcc13b3fb", // "Consent given at"
-  },
+  // NOTE: the upsert endpoint keys custom_fields by field NAME, not UUID
+  // (per https://api.surecontact.com/docs). The workspace field is named
+  // "consent_timestamp" (uuid e91857ed-3894-4fd1-908d-2e0dcc13b3fb, kept here
+  // for reference — the MCP tools and other endpoints DO use uuids).
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -64,15 +65,26 @@ async function scFetch(path, apiKey, payload) {
 
 async function sendToSureContact(env, record) {
   // Contacts are matched on email, so this is an upsert — re-submitting the
-  // same address updates rather than duplicating.
-  const contact = await scFetch("/public/contacts/upsert", env.SC_API_KEY, {
+  // same address updates rather than duplicating. Request shape per the
+  // official docs (https://api.surecontact.com/docs): identity fields nested
+  // under primary_fields; tag/list UUID arrays top-level (appended, never
+  // removed); custom_fields keyed by field NAME.
+  const primary_fields = {
     email: record.email,
-    status: env.SC_CONTACT_STATUS || "active", // set "pending" to require double opt-in
+    source: "form", // docs enum: manual, import, api, form, integration
+  };
+  // The upsert status enum is active/unsubscribed/bounced/invalid/complained —
+  // only send one when explicitly configured (e.g. a double-opt-in status),
+  // otherwise let the server default apply.
+  if (env.SC_CONTACT_STATUS) primary_fields.status = env.SC_CONTACT_STATUS;
+
+  return scFetch("/public/contacts/upsert", env.SC_API_KEY, {
+    primary_fields,
+    metadata: { signup_page: "flavourfrequency.com", country: record.country || "unknown" },
+    custom_fields: { consent_timestamp: record.ts },
     tag_uuids: [SC.tags.subscribed],
     list_uuids: [SC.lists.newsletter],
-    custom_fields: { [SC.fields.consentTimestamp]: record.ts },
   });
-  return contact;
 }
 
 export async function onRequestPost({ request, env, waitUntil }) {

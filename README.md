@@ -108,6 +108,11 @@ specific to this workspace:
 
 If you rebuild the workspace, update that constant or contacts will be created untagged.
 
+One asymmetry to know: on the public **upsert** endpoint, `custom_fields` is keyed by field
+**name** (`consent_timestamp`), while tags and lists are keyed by **UUID** — the docs at
+https://api.surecontact.com/docs are authoritative, and identity fields (`email`, `status`,
+`source`) must be nested under `primary_fields`.
+
 #### Consent
 
 The "Send me event drops & menus" box is unticked by default (a pre-ticked box is not consent under
