@@ -1,0 +1,16 @@
+# The served site is the HTML/CSS/JS plus assets/, fonts/ and the platform
+# files (_headers, robots.txt, sitemap.xml, site.webmanifest, favicon.ico).
+# Everything below is repo internals that must NOT be uploaded as public
+# assets — before this file existed, even functions/api/subscribe.js and
+# README.md were publicly fetchable on the live site.
+.assetsignore
+.claude/
+.dev.vars
+.gitignore
+.wrangler/
+functions/
+node_modules/
+README.md
+test/
+worker.js
+wrangler.jsonc

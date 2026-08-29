@@ -80,5 +80,22 @@ await check("GET → 405", (await onRequestGet()).status, 405);
   await check("SC_CONTACT_STATUS=pending honoured", calls[0].status, "pending");
 }
 
+// --- worker routing (worker.js is the Workers-with-assets entry point)
+{
+  const { default: worker } = await import("../worker.js");
+  const ctx = { waitUntil: () => {} };
+  const assetCalls = [];
+  const env = { SUBSCRIBERS: mkKV(), ASSETS: { fetch: async (r) => { assetCalls.push(new URL(r.url).pathname); return new Response("asset", { status: 200 }); } } };
+
+  const p = await worker.fetch(req(VALID), env, ctx);
+  await check("worker: POST /api/subscribe → handler (200)", { status: p.status, body: await p.json() }, { status: 200, body: { ok: true } });
+
+  const g = await worker.fetch(new Request("https://x/api/subscribe"), env, ctx);
+  await check("worker: GET /api/subscribe → 405", g.status, 405);
+
+  const a = await worker.fetch(new Request("https://x/menu-poster.jpg"), env, ctx);
+  await check("worker: other paths fall through to ASSETS", { status: a.status, path: assetCalls[0] }, { status: 200, path: "/menu-poster.jpg" });
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

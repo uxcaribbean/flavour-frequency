@@ -3,7 +3,7 @@
 One-page launch site for **Flavour Frequency** (*Food · Music · Culture*): Home, Menu, Find us,
 About, and the "Stay on frequency" signup. Built from the
 [Flavour Frequency Design System](https://claude.ai/design/p/4743edb1-f317-4241-856a-94c4b5df593b)
-(`ui_kits/web` mockup) as a static, dependency-free site for **Cloudflare Pages**.
+(`ui_kits/web` mockup) as a static, dependency-free site for **Cloudflare Workers** (static assets).
 
 - Plain HTML / CSS / vanilla JS — no build step, no framework, no runtime dependencies
 - Self-hosted fonts (Anton, Oswald, Archivo — SIL OFL) — no third-party requests at all
@@ -24,7 +24,9 @@ styles.css            tokens (ported from the design system) + components + sect
 main.js               nav, scroll-spy, reveals, filters, lightbox, countdown, signup
 assets/               optimised images, favicons, OG image, grain tile
 fonts/                latin-subset WOFF2 + licence notes
-functions/api/        Cloudflare Pages Function: POST /api/subscribe
+functions/api/        the /api/subscribe handler (imported by worker.js)
+worker.js             Worker entry: routes /api/subscribe, falls through to assets
+wrangler.jsonc        deploy config (Worker "flavour-frequency" + static assets)
 _headers              security + caching headers (Cloudflare Pages)
 robots.txt  sitemap.xml  site.webmanifest
 ```
@@ -40,28 +42,31 @@ python3 -m http.server 8787
 Then open <http://localhost:8787>. (`/api/subscribe` only exists on Cloudflare — locally the form shows
 its mailto fallback, which is the intended behaviour when the endpoint isn't available.)
 
-## Deploying on Cloudflare Pages
+## Deploying on Cloudflare (Worker + static assets)
 
-The project is already connected to this repo. Settings to use:
+The project deploys as a **Cloudflare Worker with static assets** — not a Pages project. Every
+push to `main` builds and deploys via the Worker's git integration.
 
-| Setting | Value |
-|---|---|
-| Framework preset | **None** |
-| Build command | *(leave empty)* |
-| Build output directory | `/` |
-| Production branch | `main` |
+- `wrangler.jsonc` is the deploy config: Worker name `flavour-frequency`, `main: worker.js`,
+  assets served from the repo root. The name must match the Worker in the dashboard.
+- `worker.js` runs only for requests that don't match a static asset: it serves
+  `POST /api/subscribe` (importing the handler from `functions/api/subscribe.js`) and passes
+  everything else to the assets binding for a 404.
+- `.assetsignore` keeps repo internals (README, tests, the worker source, this config) from
+  being uploaded as public assets.
+- `_headers` still applies to static asset responses. API responses set their own headers.
+- If a deploy serves the site but `/api/subscribe` returns 404, check the Worker's build
+  settings: the deploy command must be plain `npx wrangler deploy` — an explicit `--assets`
+  flag would bypass `main` and deploy assets only.
 
-Every push to `main` deploys. `functions/` is picked up automatically as Pages Functions, and
-`_headers` is applied at the edge.
-
-Custom domain: `flavourfrequency.com` is referenced in the canonical / OG / sitemap URLs — attach it
-under **Custom domains** in the Pages project (DNS already points at Cloudflare).
+Custom domain: `flavourfrequency.com` is attached to the Worker (the canonical / OG / sitemap
+URLs reference it).
 
 ### Wiring up the signup form (SureContact)
 
 The mailing list lives in **SureContact**. The page keeps its own form and POSTs to
-`/api/subscribe` — a Pages Function, i.e. server-side. That matters: a static page has no server, so
-an API key in client-side JS would be readable by anyone. The credential never leaves the Function.
+`/api/subscribe` — handled by the Worker (`worker.js` → `functions/api/subscribe.js`), i.e. server-side. That matters: a static page has no server, so
+an API key in client-side JS would be readable by anyone. The credential never leaves the Worker.
 
 > The SureContact-hosted form was considered and rejected: it is a page on `app.surecontact.com`, so
 > embedding means an **iframe**, and CSS cannot cross an iframe boundary — it could not be made to
@@ -73,16 +78,21 @@ falls back to a mailto link, so signups are never silently dropped:
 
 | Variable | Where | What it does |
 |---|---|---|
-| `SC_API_KEY` | *Settings → Variables* (encrypt it) | Upserts the contact and sets tag, list and consent timestamp. Richest option. |
-| `SC_WEBHOOK_URL` | *Settings → Variables* | An automation's Incoming Webhook URL. No key; starts the automation directly. |
-| `SUBSCRIBERS` | *Settings → Bindings → KV namespace* | Durable local copy, written first so a SureContact outage can't lose a signup. |
-| `SC_CONTACT_STATUS` | *Settings → Variables* (optional) | `active` (default) or `pending` to require double opt-in. |
+| `SC_API_KEY` | Worker → *Settings → Variables and Secrets* — type **Secret** | Upserts the contact and sets tag, list and consent timestamp. Richest option. |
+| `SC_WEBHOOK_URL` | Worker → *Settings → Variables and Secrets* — type **Secret** | An automation's Incoming Webhook URL. No key; starts the automation directly. |
+| `SUBSCRIBERS` | KV binding — declare it in `wrangler.jsonc` (see below) | Durable local copy, written first so a SureContact outage can't lose a signup. |
+| `SC_CONTACT_STATUS` | Worker → *Settings → Variables and Secrets* — type Text (optional) | `active` (default) or `pending` to require double opt-in. |
 
-**KV + `SC_API_KEY` together is the recommended pair.** KV is written first as the durable record;
-SureContact is then best-effort, so if it is down the visitor still sees success and the signup can
-be replayed from KV rather than lost.
+Secrets survive every deploy, and `keep_vars: true` preserves dashboard-added text variables
+too. **KV is the exception**: on a git-connected Worker, `wrangler.jsonc` is the source of
+truth for bindings, so a KV binding added only in the dashboard is dropped on the next push.
+To enable it, create the namespace (**Storage & Databases → KV**), then declare it:
 
-Redeploy after adding variables — Pages only picks them up on a new deployment.
+```jsonc
+"kv_namespaces": [{ "binding": "SUBSCRIBERS", "id": "<namespace id>" }]
+```
+
+Adding a secret in the dashboard takes effect immediately — it deploys a new version of the same code, no push needed.
 
 #### Workspace UUIDs
 

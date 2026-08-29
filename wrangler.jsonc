@@ -1,0 +1,24 @@
+/**
+ * Cloudflare Workers config. This site deploys as a Worker with STATIC ASSETS,
+ * not a Cloudflare Pages project — so the Pages `functions/` convention never
+ * runs. `main` gives the Worker a script: that is what serves /api/subscribe,
+ * and it is also what unlocks Variables/Secrets/KV in the dashboard (all three
+ * are refused on an assets-only Worker).
+ *
+ * `name` must stay "flavour-frequency" — it has to match the Worker in the
+ * Cloudflare dashboard or builds would target a different Worker.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flavour-frequency",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-26",
+  // Keep dashboard-added text variables (e.g. SC_CONTACT_STATUS) across deploys.
+  // Secrets always survive; KV bindings must be declared here — see README.
+  "keep_vars": true,
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  }
+}
