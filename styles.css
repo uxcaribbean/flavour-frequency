@@ -320,6 +320,8 @@ ul { margin: 0; padding: 0; list-style: none; }
 .footer__links a { color: var(--text-muted); font-family: var(--font-condensed); letter-spacing: var(--track-caps); text-transform: uppercase; }
 .footer__links a:hover { color: var(--accent-hot); }
 .footer__links a[aria-current="page"] { color: var(--ff-cream); }
+.footer__cookie { padding: 0; background: none; border: 0; cursor: pointer; font: inherit; font-family: var(--font-condensed); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text-muted); transition: color var(--dur-fast); }
+.footer__cookie:hover { color: var(--accent-hot); }
 .footer__top { color: var(--text-muted); font-family: var(--font-condensed); letter-spacing: var(--track-caps); text-transform: uppercase; }
 
 /* ==========================================================================
